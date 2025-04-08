@@ -1,6 +1,7 @@
 package main
 
 import (
+    "encoding/json"
     "fmt"
     "log"
     "net/http"
@@ -44,10 +45,46 @@ func main() {
                 break
             }
             log.Printf("Received message type %d: %s", msgType, msg)
+
             if msgType == websocket.TextMessage {
-                if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-                    log.Printf("Write error: %v", err)
-                    break
+                var data map[string]interface{}
+                if err := json.Unmarshal(msg, &data); err != nil {
+                    log.Printf("Unmarshal error: %v", err)
+                    continue
+                }
+
+                if data["type"] == "file" {
+                    // Send USB transfer command
+                    transferMsg := map[string]interface{}{
+                        "type":     "transfer",
+                        "endpoint": 1,
+                        "data":     data["data"],
+                    }
+                    transferJSON, _ := json.Marshal(transferMsg)
+                    if err := conn.WriteMessage(websocket.TextMessage, transferJSON); err != nil {
+                        log.Printf("Write error: %v", err)
+                        break
+                    }
+                    // Placeholder for SpringBoard refresh (needs SparseRestore logic)
+                    controlMsg := map[string]interface{}{
+                        "type":        "control",
+                        "requestType": "vendor",
+                        "recipient":   "device",
+                        "request":     0x40, // Example value
+                        "value":       0,
+                        "index":       0,
+                    }
+                    controlJSON, _ := json.Marshal(controlMsg)
+                    if err := conn.WriteMessage(websocket.TextMessage, controlJSON); err != nil {
+                        log.Printf("Write error: %v", err)
+                        break
+                    }
+                } else {
+                    // Echo unknown messages for now
+                    if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+                        log.Printf("Write error: %v", err)
+                        break
+                    }
                 }
             }
         }
