@@ -1,45 +1,61 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
+
+	"github.com/gorilla/websocket"
 )
 
-var socketFile = flag.String("socket", "/tmp/remote_usbmuxd.sock", "local unix socket")
-var addressFlag = flag.String("listen", "127.0.0.1", "remote service address")
-var portFlag = flag.Int("port", 8080, "remote service port")
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 func main() {
-	flag.Parse()
-
-	if err := os.RemoveAll(*socketFile); err != nil {
-		log.Fatal(err)
+	// Use Render's PORT environment variable, fallback to 8080
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
-	localSocket, err := net.Listen("unix", *socketFile)
-	if err != nil {
-		log.Fatal("listen error:", err)
-	}
-	defer localSocket.Close()
-	fmt.Printf("Local socket opened at %s\n", *socketFile)
+	// Define WebSocket handler
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("WebSocket upgrade error: %v", err)
+			return
+		}
+		defer conn.Close()
 
-	hub := newHub(&localSocket)
+		// Handle incoming messages (e.g., .tendies file)
+		for {
+			msgType, msg, err := conn.ReadMessage()
+			if err != nil {
+				log.Printf("Read error: %v", err)
+				break
+			}
 
-	go hub.runLocalConnections()
-
-	go hub.run()
-
-	http.HandleFunc("/v1/device", func(writer http.ResponseWriter, reader *http.Request) {
-		hub.handleRemoteConnection(writer, reader)
+			// Process message (simplified for wallpaper)
+			if msgType == websocket.TextMessage {
+				log.Printf("Received: %s", msg)
+				// Example: Send back a command to write the file via WebUSB
+				response := []byte(`{"type": "transfer", "endpoint": 1, "data": ` + string(msg) + `}`)
+				err = conn.WriteMessage(websocket.TextMessage, response)
+				if err != nil {
+					log.Printf("Write error: %v", err)
+					break
+				}
+			}
+		}
 	})
 
-	listenBind := fmt.Sprintf("%s:%d", *addressFlag, *portFlag)
-	fmt.Printf("Serving remote socket opened at %s\n", listenBind)
-	err = http.ListenAndServe(listenBind, nil)
+	// Bind to 0.0.0.0 and PORT
+	listenAddr := fmt.Sprintf("0.0.0.0:%s", port)
+	fmt.Printf("Starting WebSocket server on %s\n", listenAddr)
+	err := http.ListenAndServe(listenAddr, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
