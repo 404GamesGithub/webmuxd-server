@@ -54,10 +54,10 @@ func main() {
                 }
 
                 if data["type"] == "file" {
-                    // Send USB transfer command
+                    // Send USB transfer for wallpaper data
                     transferMsg := map[string]interface{}{
                         "type":     "transfer",
-                        "endpoint": 1,
+                        "endpoint": 1, // Bulk endpoint, may need adjustment
                         "data":     data["data"],
                     }
                     transferJSON, _ := json.Marshal(transferMsg)
@@ -65,23 +65,39 @@ func main() {
                         log.Printf("Write error: %v", err)
                         break
                     }
-                    // Placeholder for SpringBoard refresh (needs SparseRestore logic)
-                    controlMsg := map[string]interface{}{
+
+                    // Send control command to write wallpaper (placeholder)
+                    controlMsg1 := map[string]interface{}{
                         "type":        "control",
                         "requestType": "vendor",
                         "recipient":   "device",
-                        "request":     0x40, // Example value
-                        "value":       0,
+                        "request":     0x40, // Arbitrary, needs SparseRestore value
+                        "value":       0x01, // Example: write operation
                         "index":       0,
                     }
-                    controlJSON, _ := json.Marshal(controlMsg)
-                    if err := conn.WriteMessage(websocket.TextMessage, controlJSON); err != nil {
+                    controlJSON1, _ := json.Marshal(controlMsg1)
+                    if err := conn.WriteMessage(websocket.TextMessage, controlJSON1); err != nil {
                         log.Printf("Write error: %v", err)
                         break
                     }
-                } else {
-                    // Echo unknown messages for now
-                    if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+
+                    // Send control command to refresh SpringBoard (placeholder)
+                    controlMsg2 := map[string]interface{}{
+                        "type":        "control",
+                        "requestType": "vendor",
+                        "recipient":   "device",
+                        "request":     0x40, // Arbitrary, needs killall equivalent
+                        "value":       0x02, // Example: refresh operation
+                        "index":       0,
+                    }
+                    controlJSON2, _ := json.Marshal(controlMsg2)
+                    if err := conn.WriteMessage(websocket.TextMessage, controlJSON2); err != nil {
+                        log.Printf("Write error: %v", err)
+                        break
+                    }
+
+                    // Notify completion
+                    if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"status": "Wallpaper applied"}`)); err != nil {
                         log.Printf("Write error: %v", err)
                         break
                     }
