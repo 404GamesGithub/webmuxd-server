@@ -11,7 +11,10 @@ import (
 var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
-    CheckOrigin: func(r *http.Request) bool { return true }, // Allow local HTML
+    CheckOrigin: func(r *http.Request) bool {
+        log.Printf("Origin: %s", r.Header.Get("Origin"));
+        return true;
+    },
 }
 
 func main() {
@@ -26,9 +29,9 @@ func main() {
             log.Printf("WebSocket upgrade error: %v", err)
             return
         }
+        log.Printf("WebSocket connection established from %s", r.RemoteAddr)
         defer conn.Close()
 
-        // Send initial confirmation
         if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"status": "Connected to server"}`)); err != nil {
             log.Printf("Initial write error: %v", err)
             return
@@ -40,15 +43,15 @@ func main() {
                 log.Printf("Read error: %v", err)
                 break
             }
+            log.Printf("Received message type %d: %s", msgType, msg)
             if msgType == websocket.TextMessage {
-                log.Printf("Received: %s", msg)
-                // Echo back for testing
                 if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
                     log.Printf("Write error: %v", err)
                     break
                 }
             }
         }
+        log.Printf("WebSocket connection closed")
     })
 
     listenAddr := fmt.Sprintf("0.0.0.0:%s", port)
