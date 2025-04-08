@@ -54,10 +54,10 @@ func main() {
                 }
 
                 if data["type"] == "file" {
-                    // Send USB transfer for wallpaper data
+                    // Step 1: Transfer wallpaper data
                     transferMsg := map[string]interface{}{
                         "type":     "transfer",
-                        "endpoint": 1, // Bulk endpoint, may need adjustment
+                        "endpoint": 1,
                         "data":     data["data"],
                     }
                     transferJSON, _ := json.Marshal(transferMsg)
@@ -66,13 +66,13 @@ func main() {
                         break
                     }
 
-                    // Send control command to write wallpaper (placeholder)
+                    // Step 2: Control command to write file (SparseRestore placeholder)
                     controlMsg1 := map[string]interface{}{
                         "type":        "control",
                         "requestType": "vendor",
                         "recipient":   "device",
-                        "request":     0x40, // Arbitrary, needs SparseRestore value
-                        "value":       0x01, // Example: write operation
+                        "request":     0x40, // SparseRestore filesystem write (needs exact value)
+                        "value":       0x01, // Write operation
                         "index":       0,
                     }
                     controlJSON1, _ := json.Marshal(controlMsg1)
@@ -81,13 +81,13 @@ func main() {
                         break
                     }
 
-                    // Send control command to refresh SpringBoard (placeholder)
+                    // Step 3: Control command to refresh SpringBoard (SparseRestore placeholder)
                     controlMsg2 := map[string]interface{}{
                         "type":        "control",
                         "requestType": "vendor",
                         "recipient":   "device",
-                        "request":     0x40, // Arbitrary, needs killall equivalent
-                        "value":       0x02, // Example: refresh operation
+                        "request":     0x40, // SparseRestore refresh (needs exact value)
+                        "value":       0x02, // Refresh operation
                         "index":       0,
                     }
                     controlJSON2, _ := json.Marshal(controlMsg2)
@@ -96,7 +96,7 @@ func main() {
                         break
                     }
 
-                    // Notify completion
+                    // Step 4: Notify completion
                     if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"status": "Wallpaper applied"}`)); err != nil {
                         log.Printf("Write error: %v", err)
                         break
